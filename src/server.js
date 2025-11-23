@@ -1,7 +1,8 @@
 // ==========================================
-// src/server.js
+// src/server.js - ACTUALIZADO CON API
 // ==========================================
 const express = require('express');
+const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -22,8 +23,47 @@ function obtenerIPLocal() {
   return 'localhost';
 }
 
-function crearServidorRobos(port) {
+function crearServidorPrincipal(port) {
   const app = express();
+  
+  // ==========================================
+  // MIDDLEWARES
+  // ==========================================
+  
+  // CORS - Permitir peticiones del frontend
+  app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // Vite usa puerto 5173
+    credentials: true
+  }));
+  
+  // Body parser
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  
+  // Logger de peticiones
+  app.use((req, res, next) => {
+    logger.debug(`${req.method} ${req.path}`);
+    next();
+  });
+  
+  // ==========================================
+  // RUTAS DE API
+  // ==========================================
+  
+  // Importar routers de API
+  const statsRouter = require('./api/stats');
+  const robosRouter = require('./api/robos');
+  const ventasRouter = require('./api/ventas');
+  
+  // Montar routers
+  app.use('/api', statsRouter);
+  app.use('/api', robosRouter);
+  app.use('/api', ventasRouter);
+  
+  // ==========================================
+  // RUTAS DE DESCARGA (YA EXISTENTES)
+  // ==========================================
+  
   const registrosDir = config.paths.registros;
   
   app.get('/descargar-ultimo-registro', (req, res) => {
@@ -53,23 +93,76 @@ function crearServidorRobos(port) {
     }
   });
   
+  // ==========================================
+  // RUTAS DE SALUD
+  // ==========================================
+  
   app.get('/health', (req, res) => {
     res.json({
       status: 'ok',
       uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        api: '/api',
+        stats: '/api/stats',
+        robos: '/api/robos',
+        ventas: '/api/ventas'
+      }
+    });
+  });
+  
+  app.get('/api/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      database: 'connected', // TODO: verificar conexión real
+      cache: 'active',
       timestamp: new Date().toISOString()
     });
   });
   
+  // ==========================================
+  // MANEJO DE ERRORES 404
+  // ==========================================
+  
+  app.use((req, res) => {
+    res.status(404).json({
+      error: 'Endpoint no encontrado',
+      path: req.path,
+      method: req.method
+    });
+  });
+  
+  // ==========================================
+  // MANEJO DE ERRORES GLOBALES
+  // ==========================================
+  
+  app.use((err, req, res, next) => {
+    logger.error('Error en servidor:', err);
+    res.status(500).json({
+      error: 'Error interno del servidor',
+      message: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  });
+  
+  // ==========================================
+  // INICIAR SERVIDOR
+  // ==========================================
+  
   const server = app.listen(port, () => {
     const ip = obtenerIPLocal();
-    logger.info(`🚀 Servidor de robos activo: http://${ip}:${port}/descargar-ultimo-registro`);
+    console.log('');
+    logger.info(`🚀 Servidor API activo en:`);
+    logger.info(`   Local:   http://localhost:${port}`);
+    logger.info(`   Red:     http://${ip}:${port}`);
+    logger.info(`   Health:  http://localhost:${port}/health`);
+    logger.info(`   API:     http://localhost:${port}/api/stats`);
+    console.log('');
   });
   
   return {
     app,
     server,
-    url: `http://${obtenerIPLocal()}:${port}/descargar-ultimo-registro`
+    url: `http://${obtenerIPLocal()}:${port}`
   };
 }
 
@@ -126,19 +219,19 @@ function crearServidorVentas(port) {
 
 function iniciarServidores(client) {
   try {
-    const servidorRobos = crearServidorRobos(config.express.port);
+    const servidorPrincipal = crearServidorPrincipal(config.express.port);
     const servidorVentas = crearServidorVentas(config.express.portVentas);
     
     // Guardar referencias en el cliente
     client.servidores = {
-      robos: servidorRobos,
+      principal: servidorPrincipal,
       ventas: servidorVentas
     };
     
     logger.info('✅ Servidores Express iniciados correctamente');
     
     return {
-      robos: servidorRobos,
+      principal: servidorPrincipal,
       ventas: servidorVentas
     };
   } catch (error) {
