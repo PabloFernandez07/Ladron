@@ -1,27 +1,29 @@
 // ==========================================
-// src/handlers/modalHandler.js - CORREGIDO
+// src/handlers/modalHandler.js
 // ==========================================
 const logger = require('../utils/logger');
 const ventaService = require('../services/ventaService');
 const config = require('../config');
 const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
-async function handle(interaction, client) {
-  logger.interaction('modal', interaction.customId, interaction.user);
-  
-  const handlers = {
-    'venta_cantidad': handleVentaCantidad,
-    'venta_precio': handleVentaPrecio
-  };
-  
-  const handler = handlers[interaction.customId];
-  
-  if (handler) {
-    await handler(interaction, client);
-  } else {
-    logger.warn(`Handler no encontrado para modal: ${interaction.customId}`);
+module.exports = {
+  async handle(interaction, client) {
+    logger.interaction('modal', interaction.customId, interaction.user);
+    
+    const handlers = {
+      'venta_cantidad': handleVentaCantidad,
+      'venta_precio': handleVentaPrecio
+    };
+    
+    const handler = handlers[interaction.customId];
+    
+    if (handler) {
+      await handler(interaction, client);
+    } else {
+      logger.warn(`Handler no encontrado para modal: ${interaction.customId}`);
+    }
   }
-}
+};
 
 async function handleVentaCantidad(interaction) {
   try {
@@ -101,5 +103,3 @@ async function handleVentaPrecio(interaction, client) {
     });
   }
 }
-
-module.exports = { handle };

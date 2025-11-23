@@ -1,29 +1,31 @@
 // ==========================================
-// src/handlers/buttonHandler.js - CORREGIDO
+// src/handlers/buttonHandler.js
 // ==========================================
 const logger = require('../utils/logger');
 const ventaService = require('../services/ventaService');
 const { caches } = require('../services/cacheService');
 const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
 
-async function handle(interaction, client) {
-  logger.interaction('button', interaction.customId, interaction.user);
-  
-  const handlers = {
-    'venta_add': handleVentaAdd,
-    'venta_terminar': handleVentaTerminar,
-    'copiar_banda': handleCopiarBanda,
-    'copiar_racing': handleCopiarRacing
-  };
-  
-  const handler = handlers[interaction.customId];
-  
-  if (handler) {
-    await handler(interaction, client);
-  } else {
-    logger.warn(`Handler no encontrado para botón: ${interaction.customId}`);
+module.exports = {
+  async handle(interaction, client) {
+    logger.interaction('button', interaction.customId, interaction.user);
+    
+    const handlers = {
+      'venta_add': handleVentaAdd,
+      'venta_terminar': handleVentaTerminar,
+      'copiar_banda': handleCopiarBanda,
+      'copiar_racing': handleCopiarRacing
+    };
+    
+    const handler = handlers[interaction.customId];
+    
+    if (handler) {
+      await handler(interaction, client);
+    } else {
+      logger.warn(`Handler no encontrado para botón: ${interaction.customId}`);
+    }
   }
-}
+};
 
 async function handleVentaAdd(interaction) {
   try {
@@ -107,7 +109,7 @@ async function handleVentaTerminar(interaction) {
 
 async function handleCopiarBanda(interaction) {
   const precios = caches.precios.get();
-  const categorias = precios?.bandas || {};
+  const categorias = precios.bandas || {};
   
   const etiquetas = {
     melee: '🗡️ **ARMAS MELEE**',
@@ -136,7 +138,7 @@ async function handleCopiarBanda(interaction) {
 
 async function handleCopiarRacing(interaction) {
   const precios = caches.precios.get();
-  const categorias = precios?.racing || {};
+  const categorias = precios.racing || {};
   
   const etiquetas = {
     melee: '🗡️ **ARMAS MELEE**',
@@ -162,5 +164,3 @@ async function handleCopiarRacing(interaction) {
   
   await interaction.reply({ content: texto, ephemeral: true });
 }
-
-module.exports = { handle };

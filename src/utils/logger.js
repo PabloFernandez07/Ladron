@@ -1,5 +1,5 @@
 // ==========================================
-// src/utils/logger.js - VERSIÓN CORREGIDA
+// src/utils/logger.js
 // ==========================================
 const winston = require('winston');
 const path = require('path');
@@ -60,20 +60,37 @@ const logger = winston.createLogger({
   ]
 });
 
-// Agregar métodos personalizados DESPUÉS de crear el logger
+// Agregar métodos de utilidad
+logger.command = (commandName, user, guild) => {
+  logger.info(`Comando ejecutado: /${commandName}`, {
+    user: user.tag,
+    userId: user.id,
+    guild: guild?.name,
+    guildId: guild?.id
+  });
+};
+
+logger.interaction = (type, customId, user) => {
+  logger.info(`Interacción: ${type} - ${customId}`, {
+    user: user.tag,
+    userId: user.id
+  });
+};
+
+// Métodos personalizados
 logger.command = function(commandName, user, guild) {
   this.info(`Comando ejecutado: /${commandName}`, {
-    user: user?.tag || 'Unknown',
-    userId: user?.id || 'Unknown',
-    guild: guild?.name || 'Unknown',
-    guildId: guild?.id || 'Unknown'
+    user: user.tag,
+    userId: user.id,
+    guild: guild?.name,
+    guildId: guild?.id
   });
 };
 
 logger.interaction = function(type, customId, user) {
   this.info(`Interacción: ${type} - ${customId}`, {
-    user: user?.tag || 'Unknown',
-    userId: user?.id || 'Unknown'
+    user: user.tag,
+    userId: user.id
   });
 };
 
