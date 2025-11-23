@@ -21,7 +21,7 @@ module.exports = {
       // Cargar establecimientos dinámicamente
       let establecimientos = {};
       try {
-        establecimientos = (caches?.establecimientos?.get && caches.establecimientos.get()) || {};
+        establecimientos = caches.establecimientos.get() || {};
       } catch (error) {
         logger.error('Error cargando establecimientos:', error);
       }
@@ -72,7 +72,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral
       
       const participantes = interaction.options.getString('participantes');
       const establecimientoValue = interaction.options.getString('establecimiento');
@@ -127,6 +127,16 @@ module.exports = {
       // Enviar mensaje al canal
       const mensaje = await canal.send({ embeds: [embed] });
       await mensaje.react(exito ? '✅' : '❌');
+      
+      // Actualizar resumen semanal automáticamente
+      try {
+        const registroService = require('../services/registroService');
+        await registroService.enviarResumenSemanal(interaction.guild);
+        logger.info('Resumen semanal actualizado después del robo');
+      } catch (resumenError) {
+        logger.error('Error actualizando resumen:', resumenError);
+        // No fallar el comando si el resumen falla
+      }
       
       await interaction.editReply({
         content: '✅ Robo registrado correctamente.',

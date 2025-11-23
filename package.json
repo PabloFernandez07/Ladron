@@ -4,20 +4,16 @@
   "description": "Bot de Discord para gestión de robos y ventas - Versión mejorada",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node scripts/start-all.js",
+    "dev": "node scripts/dev.js",
+    "bot": "node src/index.js",
     "deploy": "node scripts/deploy-all.js",
-    "deploy-start": "node scripts/quick-start.js",
     "migrate": "node src/database/migrate.js",
-    "init": "node scripts/init.js",
     "init-data": "node scripts/init-data.js",
     "check": "node scripts/check-env.js",
     "check-data": "node scripts/check-data.js",
     "test": "jest",
-    "lint": "eslint src/",
-    "clean": "node -e \"console.log('🧹 Limpiando caché...'); require('fs').rmSync('node_modules/.cache', {recursive: true, force: true}); console.log('✅ Caché limpiado')\"",
-    "full": "npm run deploy && npm start",
-    "setup": "npm run init-data && npm run migrate && npm run deploy"
+    "lint": "eslint src/"
   },
   "keywords": [
     "discord",
