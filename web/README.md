@@ -45,7 +45,7 @@ npm run dev
 ### Logs del backend (limpios):
 ```
 ✅ Bot conectado como: Ladron#6016
-🚀 Servidor API activo en: http://localhost:3000
+🚀 Servidor API activo en: http://localhost:3100
 Estadísticas solicitadas vía API
 ```
 

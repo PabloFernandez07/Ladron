@@ -76,7 +76,7 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 text-2xl mb-4">❌ {error}</p>
-          <p className="text-gray-400 mb-4">Verifica que el backend esté corriendo en el puerto 3000</p>
+          <p className="text-gray-400 mb-4">Verifica que el backend esté corriendo en el puerto 3100</p>
           <button 
             onClick={() => window.location.reload()}
             className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"

@@ -51,8 +51,8 @@ const config = {
   },
   
   express: {
-    port: parseInt(process.env.EXPRESS_PORT || '3000'),
-    portVentas: parseInt(process.env.EXPRESS_PORT_VENTAS || '3001')
+    port: parseInt(process.env.EXPRESS_PORT || '3100'),
+    portVentas: parseInt(process.env.EXPRESS_PORT_VENTAS || '3101')
   },
   
   tipos: {

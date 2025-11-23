@@ -72,7 +72,7 @@ setTimeout(() => {
     log('✅ SISTEMA COMPLETAMENTE INICIADO', 'green');
     log('═'.repeat(60), 'green');
     console.log('');
-    log('📡 Backend (Bot + API):  http://localhost:3000', 'cyan');
+    log('📡 Backend (Bot + API):  http://localhost:3100', 'cyan');
     log('🎨 Frontend (Dashboard): http://localhost:5173', 'magenta');
     console.log('');
     log('💡 Para detener: Ctrl+C', 'yellow');
@@ -102,4 +102,4 @@ setTimeout(() => {
     process.exit(0);
   });
 
-}, 3000);
+}, 3100);
