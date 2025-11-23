@@ -1,0 +1,56 @@
+{
+  "name": "discord-bot-mejorado",
+  "version": "2.0.0",
+  "description": "Bot de Discord para gestión de robos y ventas - Versión mejorada",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "deploy": "node scripts/deploy-all.js",
+    "deploy-start": "node scripts/quick-start.js",
+    "migrate": "node src/database/migrate.js",
+    "init": "node scripts/init.js",
+    "init-data": "node scripts/init-data.js",
+    "check": "node scripts/check-env.js",
+    "check-data": "node scripts/check-data.js",
+    "test": "jest",
+    "lint": "eslint src/",
+    "clean": "node -e \"console.log('🧹 Limpiando caché...'); require('fs').rmSync('node_modules/.cache', {recursive: true, force: true}); console.log('✅ Caché limpiado')\"",
+    "full": "npm run deploy && npm start",
+    "setup": "npm run init-data && npm run migrate && npm run deploy"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "discord.js",
+    "roleplay",
+    "gta"
+  ],
+  "author": "Tu Nombre",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "dotenv-safe": "^9.1.0",
+    "mysql2": "^3.6.5",
+    "node-cron": "^3.0.3",
+    "express": "^4.18.2",
+    "winston": "^3.11.0",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "nodemonConfig": {
+    "watch": ["src"],
+    "ext": "js,json",
+    "ignore": ["src/**/*.test.js", "logs/", "data/"],
+    "delay": "2000"
+  }
+}
