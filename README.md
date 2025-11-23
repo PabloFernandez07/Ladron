@@ -49,7 +49,7 @@ GUILD_IDS=id_servidor1,id_servidor2
 # Canales
 CANAL_MENSAJE_ROBOS=id_canal_robos
 CANAL_VENTAS=id_canal_ventas
-CANAL_LIMITES_ID=id_canal_limites
+CANAL_LIMITES_ID=id_canal_limites_ventas
 CANAL_AVISOS_ID=id_canal_avisos
 
 # Base de Datos
@@ -245,7 +245,7 @@ Este proyecto es privado. Todos los derechos reservados.
 
 **Tu Nombre**
 
-- GitHub: [@](https://github.com/tu-usuario)
+- GitHub: [@tu-usuario](https://github.com/tu-usuario)
 
 ---
 

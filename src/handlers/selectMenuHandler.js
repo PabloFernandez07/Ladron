@@ -1,5 +1,5 @@
 // ==========================================
-// src/handlers/selectMenuHandler.js - CORREGIDO
+// src/handlers/selectMenuHandler.js
 // ==========================================
 const logger = require('../utils/logger');
 const ventaService = require('../services/ventaService');
@@ -8,29 +8,33 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ActionRowBuilder
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-async function handle(interaction, client) {
-  logger.interaction('selectMenu', interaction.customId, interaction.user);
-  
-  const handlers = {
-    'venta_producto': handleVentaProducto,
-    'venta_banda': handleVentaBanda,
-    'seleccionar_registro': handleSeleccionarRegistro,
-    'seleccionar_registro_ventas': handleSeleccionarRegistroVentas
-  };
-  
-  const handler = handlers[interaction.customId];
-  
-  if (handler) {
-    await handler(interaction, client);
-  } else {
-    logger.warn(`Handler no encontrado para select menu: ${interaction.customId}`);
+module.exports = {
+  async handle(interaction, client) {
+    logger.interaction('selectMenu', interaction.customId, interaction.user);
+    
+    const handlers = {
+      'venta_producto': handleVentaProducto,
+      'venta_banda': handleVentaBanda,
+      'seleccionar_registro': handleSeleccionarRegistro,
+      'seleccionar_registro_ventas': handleSeleccionarRegistroVentas
+    };
+    
+    const handler = handlers[interaction.customId];
+    
+    if (handler) {
+      await handler(interaction, client);
+    } else {
+      logger.warn(`Handler no encontrado para select menu: ${interaction.customId}`);
+    }
   }
-}
+};
 
 async function handleVentaProducto(interaction) {
   try {
@@ -147,5 +151,3 @@ async function handleSeleccionarRegistroVentas(interaction) {
     ephemeral: true
   });
 }
-
-module.exports = { handle };

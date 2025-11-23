@@ -16,6 +16,10 @@ try {
   process.exit(1);
 }
 
+// Iniciar interceptor de console (guarda todo en logs/console.log)
+const consoleInterceptor = require('./utils/consoleInterceptor');
+consoleInterceptor.start();
+
 const { getPool } = require('./database/connection');
 
 // Inicializar cliente de Discord
