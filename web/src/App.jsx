@@ -5,8 +5,10 @@
 import { useEffect, useState } from 'react';
 import StatCard from './components/StatCard';
 import RobosChart from './components/RobosChart';
+import TiposRobosChart from './components/TiposRobosChart';
+import VentasBandasChart from './components/VentasBandasChart';
+import HeatmapChart from './components/HeatmapChart';
 import { getStats } from './services/api';
-import './App.css';
 
 function App() {
   const [stats, setStats] = useState(null);
@@ -18,30 +20,6 @@ function App() {
       try {
         setLoading(true);
         const data = await getStats();
-        
-        // Obtener información de usuarios de Discord
-        if (data.topLadrones && data.topLadrones.length > 0) {
-          const usuariosConNombres = await Promise.all(
-            data.topLadrones.map(async (usuario) => {
-              try {
-                // Intentar obtener el nombre del usuario desde Discord
-                // Esto requiere que el backend tenga acceso al cliente de Discord
-                return {
-                  ...usuario,
-                  username: usuario.username // Por ahora mostramos el ID
-                };
-              // eslint-disable-next-line no-unused-vars
-              } catch (error) {
-                return {
-                  ...usuario,
-                  username: usuario.userId
-                };
-              }
-            })
-          );
-          data.topLadrones = usuariosConNombres;
-        }
-        
         setStats(data);
         setError(null);
       } catch (err) {
@@ -152,17 +130,17 @@ function App() {
         {/* Charts */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-4">📈 Tendencias</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Fila 1: Gráfica de línea y gráfica circular */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <RobosChart dias={30} />
-            
-            <div className="bg-white p-6 rounded-lg shadow-lg">
-              <div className="flex items-center justify-center h-80">
-                <div className="text-center">
-                  <p className="text-gray-500 text-lg mb-2">📊 Más gráficas próximamente</p>
-                  <p className="text-gray-400 text-sm">Ventas, Top usuarios, y más...</p>
-                </div>
-              </div>
-            </div>
+            <TiposRobosChart />
+          </div>
+
+          {/* Fila 2: Gráfica de barras y mapa de calor */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <VentasBandasChart />
+            <HeatmapChart />
           </div>
         </div>
 

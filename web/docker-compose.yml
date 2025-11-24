@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: ladron-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DISCORD_TOKEN: MTQwMDQ4MjIzODM2MDk4MTY0NA.GsgADs.HHIYOPseT49JOh2oii8roEx0lu9np3Bvd563Eg
+      DISCORD_CLIENT_ID: 1400482238360981644
+      DISCORD_GUILD_ID: 880217960654987336
+      DB_HOST: 34.175.73.201
+      DB_PORT: 3306
+      DB_USER: ladronUser
+      DB_PASSWORD: ladronPass
+      DB_NAME: discord_bot
+      EXPRESS_PORT: 3100
+      EXPRESS_PORT_VENTAS: 3101
+      FRONTEND_URL: http://34.175.73.201:80
+    ports:
+      - "3100:3100"
+      - "3101:3101"
+    volumes:
+      - ./logs:/app/logs
+      - ./registros:/app/registros
+      - ./registros_ventas:/app/registros_ventas
+    networks:
+      - ladron-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: ../dockerfile.frontend
+    container_name: ladron-frontend
+    restart: unless-stopped
+    ports:
+      - "10000:80"
+    depends_on:
+      - backend
+    networks:
+      - ladron-network
+    environment:
+      - VITE_API_URL=http://34.175.73.201:3100/api
+
+networks:
+  ladron-network:
+    driver: bridge
