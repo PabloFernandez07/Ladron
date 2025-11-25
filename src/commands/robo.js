@@ -1,164 +1,199 @@
 // ==========================================
-// src/commands/robo.js - CORREGIDO
+// src/commands/robo.js - CON LOGS DE DEBUG
 // ==========================================
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const roboService = require('../services/roboService');
-const { caches } = require('../services/cacheService');
 const config = require('../config');
 const logger = require('../utils/logger');
+
+// ✅ NUEVO: Canal específico para mensajes individuales de robos
+const CANAL_ROBOS_INDIVIDUALES = '1412269349275697215';
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('robo')
-    .setDescription('Registrar un robo realizado')
+    .setDescription('Registrar un nuevo robo')
     .addStringOption(option =>
-      option
-        .setName('participantes')
-        .setDescription('Menciona a los cómplices con @usuario')
+      option.setName('establecimiento')
+        .setDescription('Establecimiento robado')
+        .setRequired(true)
+        .setAutocomplete(true)
+    )
+    .addStringOption(option =>
+      option.setName('participantes')
+        .setDescription('Menciona a los participantes (@usuario1 @usuario2)')
         .setRequired(true)
     )
-    .addStringOption(option => {
-      // Cargar establecimientos dinámicamente
-      let establecimientos = {};
-      try {
-        establecimientos = caches.establecimientos.get() || {};
-      } catch (error) {
-        logger.error('Error cargando establecimientos:', error);
-      }
-      
-      let opt = option
-        .setName('establecimiento')
-        .setDescription('¿Qué lugar fue robado?')
-        .setRequired(true);
-      
-      // Agregar separadores y establecimientos
-      for (const tipo in establecimientos) {
-        // Agregar separador
-        opt = opt.addChoices({
-          name: `------ Tipo ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} ------`,
-          value: `separador_${tipo}`
-        });
-        
-        // Agregar establecimientos de este tipo
-        const ests = establecimientos[tipo] || [];
-        for (const est of ests) {
-          opt = opt.addChoices({
-            name: est.name,
-            value: est.value
-          });
-        }
-      }
-      
-      return opt;
-    })
     .addBooleanOption(option =>
-      option
-        .setName('exito')
-        .setDescription('¿El robo fue exitoso?')
+      option.setName('exito')
+        .setDescription('¿Fue exitoso?')
         .setRequired(true)
     )
     .addStringOption(option =>
-      option
-        .setName('imagen')
-        .setDescription('URL de imagen (opcional)')
-        .setRequired(false)
-    )
-    .addAttachmentOption(option =>
-      option
-        .setName('archivo')
-        .setDescription('Imagen como archivo (opcional)')
+      option.setName('imagen')
+        .setDescription('URL de la imagen del robo')
         .setRequired(false)
     ),
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ flags: 64 }); // 64 = Ephemeral
-      
-      const participantes = interaction.options.getString('participantes');
-      const establecimientoValue = interaction.options.getString('establecimiento');
-      const exito = interaction.options.getBoolean('exito');
-      const imagenURL = interaction.options.getString('imagen');
-      const imagenAdjunta = interaction.options.getAttachment('archivo');
-      
-      // Validar que no sea un separador
-      if (establecimientoValue.startsWith('separador')) {
-        return await interaction.editReply({
-          content: '❌ Selecciona un establecimiento válido (no un separador).',
-          ephemeral: true
-        });
-      }
-      
-      // Determinar URL de imagen
-      let imagenFinal = null;
-      if (imagenURL) {
-        imagenFinal = imagenURL;
-      } else if (imagenAdjunta) {
-        imagenFinal = imagenAdjunta.url;
-      }
-      
-      // Registrar robo usando el servicio
-      const { embed, establecimiento } = await roboService.registrarRobo(interaction, {
-        participantes,
-        establecimientoValue,
-        exito,
-        imagenUrl: imagenFinal
+      await interaction.deferReply({ ephemeral: true });
+
+      logger.info('🔵 [ROBO] Iniciando registro de robo', {
+        usuario: interaction.user.tag,
+        userId: interaction.user.id,
+        guild: interaction.guild.name,
+        guildId: interaction.guild.id
       });
+
+      const data = {
+        establecimientoValue: interaction.options.getString('establecimiento'),
+        participantes: interaction.options.getString('participantes'),
+        exito: interaction.options.getBoolean('exito'),
+        imagenUrl: interaction.options.getString('imagen')
+      };
+
+      logger.info('🔵 [ROBO] Datos del robo:', data);
+
+      // Registrar el robo
+      const { embed, establecimiento } = await roboService.registrarRobo(interaction, data);
+
+      logger.info('✅ [ROBO] Robo registrado en servicio');
+
+      // ✅ CAMBIO 1: Enviar mensaje individual al nuevo canal
+      logger.info(`🔍 [ROBO INDIVIDUAL] Buscando canal: ${CANAL_ROBOS_INDIVIDUALES}`);
+      logger.info(`🔍 [ROBO INDIVIDUAL] Canales disponibles en el servidor:`, {
+        total: interaction.guild.channels.cache.size,
+        canales: interaction.guild.channels.cache.map(c => ({
+          id: c.id,
+          nombre: c.name,
+          tipo: c.type
+        }))
+      });
+
+      const canalIndividual = interaction.guild.channels.cache.get(CANAL_ROBOS_INDIVIDUALES);
       
-      // Enviar al canal de robos
-      const canalId = config.canales.robos;
-      
-      if (!canalId) {
-        logger.warn('CANAL_MENSAJE_ROBOS no está configurado en .env');
-        return await interaction.editReply({
-          content: '⚠️ El canal de robos no está configurado. Contacta al administrador.',
-          ephemeral: true
-        });
+      if (canalIndividual) {
+        logger.info(`✅ [ROBO INDIVIDUAL] Canal encontrado: ${canalIndividual.name} (${canalIndividual.id})`);
+        
+        try {
+          await canalIndividual.send({ embeds: [embed] });
+          logger.info(`✅ [ROBO INDIVIDUAL] Mensaje enviado exitosamente al canal ${canalIndividual.name}`);
+        } catch (sendError) {
+          logger.error(`❌ [ROBO INDIVIDUAL] Error enviando mensaje:`, sendError);
+        }
+      } else {
+        logger.warn(`⚠️ [ROBO INDIVIDUAL] Canal ${CANAL_ROBOS_INDIVIDUALES} NO encontrado`);
+        logger.warn(`⚠️ [ROBO INDIVIDUAL] Verifica que el bot tenga acceso al canal y que el ID sea correcto`);
       }
+
+      // ✅ CAMBIO 2: Resumen semanal se envía al canal original (CANAL_MENSAJE_ROBOS)
+      logger.info(`🔍 [RESUMEN SEMANAL] Buscando canal de resumen: ${config.canales.robos}`);
       
-      const canal = interaction.guild.channels.cache.get(canalId);
+      const canalResumen = interaction.guild.channels.cache.get(config.canales.robos);
       
-      if (!canal) {
-        return await interaction.editReply({
-          content: `❌ No se encontró el canal de robos (ID: ${canalId}). Verifica la configuración.`,
-          ephemeral: true
-        });
+      if (canalResumen) {
+        logger.info(`✅ [RESUMEN SEMANAL] Canal encontrado: ${canalResumen.name} (${canalResumen.id})`);
+        
+        const resumenEmbed = this.crearResumenSemanal();
+        if (resumenEmbed) {
+          try {
+            await canalResumen.send({ embeds: [resumenEmbed] });
+            logger.info(`✅ [RESUMEN SEMANAL] Resumen enviado exitosamente al canal ${canalResumen.name}`);
+          } catch (sendError) {
+            logger.error(`❌ [RESUMEN SEMANAL] Error enviando resumen:`, sendError);
+          }
+        } else {
+          logger.info(`ℹ️ [RESUMEN SEMANAL] No hay datos para crear resumen`);
+        }
+      } else {
+        logger.warn(`⚠️ [RESUMEN SEMANAL] Canal ${config.canales.robos} NO encontrado`);
       }
-      
-      // Enviar mensaje al canal
-      const mensaje = await canal.send({ embeds: [embed] });
-      await mensaje.react(exito ? '✅' : '❌');
-      
-      // Actualizar resumen semanal automáticamente
-      try {
-        const registroService = require('../services/registroService');
-        await registroService.enviarResumenSemanal(interaction.guild);
-        logger.info('Resumen semanal actualizado después del robo');
-      } catch (resumenError) {
-        logger.error('Error actualizando resumen:', resumenError);
-        // No fallar el comando si el resumen falla
-      }
-      
+
+      // Respuesta efímera al usuario
       await interaction.editReply({
-        content: '✅ Robo registrado correctamente.',
+        content: `✅ Robo registrado en **${establecimiento.name}**`,
         ephemeral: true
       });
-      
+
+      logger.info('✅ [ROBO] Proceso completado exitosamente');
+
     } catch (error) {
-      logger.error('Error en comando /robo:', error);
+      logger.error('❌ [ROBO] Error ejecutando comando /robo:', error);
       
-      const errorMsg = error.message || 'Ha ocurrido un error al registrar el robo.';
+      const errorMsg = error.message || 'Error desconocido';
       
-      if (interaction.deferred) {
-        await interaction.editReply({
-          content: `❌ ${errorMsg}`,
-          ephemeral: true
-        });
-      } else {
-        await interaction.reply({
-          content: `❌ ${errorMsg}`,
-          ephemeral: true
+      await interaction.editReply({
+        content: `❌ Error: ${errorMsg}`,
+        ephemeral: true
+      }).catch(() => {});
+    }
+  },
+
+  async autocomplete(interaction) {
+    try {
+      const focusedValue = interaction.options.getFocused().toLowerCase();
+      const { caches } = require('../services/cacheService');
+      const establecimientos = caches.establecimientos.get();
+
+      if (!establecimientos) {
+        return await interaction.respond([]);
+      }
+
+      let opciones = [];
+      for (const tipo in establecimientos) {
+        const tipoInfo = config.tipos[tipo];
+        opciones.push(
+          ...establecimientos[tipo].map(est => ({
+            name: `${tipoInfo.emoji} ${est.name}`,
+            value: est.value
+          }))
+        );
+      }
+
+      const filtradas = opciones.filter(opcion =>
+        opcion.name.toLowerCase().includes(focusedValue)
+      );
+
+      await interaction.respond(filtradas.slice(0, 25));
+
+    } catch (error) {
+      logger.error('Error en autocomplete:', error);
+      await interaction.respond([]).catch(() => {});
+    }
+  },
+
+  crearResumenSemanal() {
+    const { caches } = require('../services/cacheService');
+    const resumen = caches.robosSemana.get();
+
+    if (!resumen || Object.keys(resumen).length === 0) {
+      return null;
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle('📊 Resumen Semanal de Robos')
+      .setColor('#00ff00')
+      .setTimestamp();
+
+    for (const tipo in resumen) {
+      const tipoInfo = config.tipos[tipo];
+      let texto = '';
+
+      for (const establecimiento in resumen[tipo]) {
+        const stats = resumen[tipo][establecimiento];
+        texto += `**${establecimiento}**: ${stats.exitosos} ✅ / ${stats.fallidos} ❌\n`;
+      }
+
+      if (texto) {
+        embed.addFields({
+          name: `${tipoInfo.emoji} ${tipoInfo.label}`,
+          value: texto,
+          inline: false
         });
       }
     }
+
+    return embed;
   }
 };

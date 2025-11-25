@@ -1,6 +1,6 @@
 // ==========================================
 // src/api/stats.js
-// API de Estadísticas Generales
+// API de Estadísticas Generales - CORREGIDO
 // ==========================================
 const express = require('express');
 const router = express.Router();
@@ -32,15 +32,16 @@ router.get('/stats', async (req, res) => {
       WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
     
-    // Top 5 ladrones de la semana
+    // ✅ CORREGIDO: Top 5 ladrones usando participantes_robos
     const topLadrones = await query(`
       SELECT 
-        usuario_id,
+        pr.usuario_id,
         COUNT(*) as total_robos,
-        SUM(CASE WHEN exito = 1 THEN 1 ELSE 0 END) as exitosos
-      FROM robos
-      WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      GROUP BY usuario_id
+        SUM(CASE WHEN r.exito = 1 THEN 1 ELSE 0 END) as exitosos
+      FROM participantes_robos pr
+      INNER JOIN robos r ON pr.robo_id = r.id
+      WHERE r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      GROUP BY pr.usuario_id
       ORDER BY total_robos DESC
       LIMIT 5
     `);
@@ -85,7 +86,9 @@ router.get('/stats', async (req, res) => {
           username: username,
           totalRobos: parseInt(l.total_robos),
           exitosos: parseInt(l.exitosos),
-          tasaExito: ((l.exitosos / l.total_robos) * 100).toFixed(1)
+          tasaExito: l.total_robos > 0 
+            ? ((l.exitosos / l.total_robos) * 100).toFixed(1)
+            : '0.0'
         };
       })
     );
@@ -97,7 +100,7 @@ router.get('/stats', async (req, res) => {
         fallidos: parseInt(roboData.fallidos),
         tasaExito: roboData.total > 0 
           ? ((roboData.exitosos / roboData.total) * 100).toFixed(1) 
-          : 0
+          : '0.0'
       },
       ventas: {
         total: parseInt(ventaData.total),
@@ -131,10 +134,11 @@ router.get('/stats/resumen', async (req, res) => {
     
     const semana = await query(`
       SELECT 
-        COUNT(*) as robos_semana,
-        SUM(precio_total) as ingresos_semana
-      FROM ventas
-      WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        COUNT(DISTINCT r.id) as robos_semana,
+        COALESCE(SUM(v.precio_total), 0) as ingresos_semana
+      FROM robos r
+      LEFT JOIN ventas v ON DATE(v.fecha) >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      WHERE r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
     
     const mes = await query(`
