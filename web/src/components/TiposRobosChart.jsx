@@ -1,8 +1,4 @@
-/* eslint-disable no-unused-vars */
-// ==========================================
 // web/src/components/TiposRobosChart.jsx
-// Gráfica circular de distribución de tipos
-// ==========================================
 import { useEffect, useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -19,29 +15,38 @@ function TiposRobosChart() {
       try {
         setLoading(true);
         const response = await fetch(`${import.meta.env.VITE_API_URL}/robos/por-tipo`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
         const result = await response.json();
         
-        // Asegurarse de que result sea un array
-        const dataArray = Array.isArray(result) ? result : [];
+        console.log('TiposRobos - Datos recibidos:', result);
         
-        setData(dataArray);
-        setError(null);
+        // Verificar el formato que recibimos
+        if (result && result.labels && result.totales) {
+          // Formato: {labels: [], totales: [], exitosos: []}
+          setData(result);
+          setError(null);
+        } else {
+          setError('Formato de datos incorrecto');
+          setData(null);
+        }
       } catch (err) {
         console.error('Error cargando tipos de robos:', err);
-        setError('Error al cargar datos');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-    
-    // Actualizar cada 30 segundos
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg shadow-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">🍩 Distribución por Tipo</h3>
@@ -52,7 +57,7 @@ function TiposRobosChart() {
     );
   }
 
-  if (error || !data || data.length === 0) {
+  if (error || !data || !data.labels || data.labels.length === 0) {
     return (
       <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg shadow-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">🍩 Distribución por Tipo</h3>
@@ -64,11 +69,11 @@ function TiposRobosChart() {
   }
 
   const chartData = {
-    labels: data.map(item => item.tipo.charAt(0).toUpperCase() + item.tipo.slice(1)),
+    labels: data.labels.map(label => label.charAt(0).toUpperCase() + label.slice(1)),
     datasets: [
       {
         label: 'Robos',
-        data: data.map(item => item.total),
+        data: data.totales,
         backgroundColor: [
           'rgba(34, 197, 94, 0.8)',   // Verde - Bajo
           'rgba(251, 191, 36, 0.8)',  // Amarillo - Medio
@@ -92,9 +97,7 @@ function TiposRobosChart() {
         position: 'bottom',
         labels: {
           color: '#e5e7eb',
-          font: {
-            size: 12,
-          },
+          font: { size: 12 },
           padding: 15,
           usePointStyle: true,
           pointStyle: 'circle',
@@ -117,7 +120,7 @@ function TiposRobosChart() {
         }
       },
     },
-    cutout: '65%', // Hace el donut más fino
+    cutout: '65%',
   };
 
   return (
@@ -130,15 +133,17 @@ function TiposRobosChart() {
       {/* Resumen debajo de la gráfica */}
       <div className="mt-4 pt-4 border-t border-gray-700">
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
-          {data.map((item, index) => (
-            <div key={item.tipo} className="space-y-1">
-              <div className="text-gray-400 uppercase">{item.tipo}</div>
-              <div className="text-white font-semibold text-lg">{item.total}</div>
-              <div className="text-gray-500">
-                {((item.total / data.reduce((a, b) => a + b.total, 0)) * 100).toFixed(1)}%
+          {data.labels.map((label, index) => {
+            const total = data.totales.reduce((a, b) => a + b, 0);
+            const percentage = ((data.totales[index] / total) * 100).toFixed(1);
+            return (
+              <div key={label} className="space-y-1">
+                <div className="text-gray-400 uppercase">{label}</div>
+                <div className="text-white font-semibold text-lg">{data.totales[index]}</div>
+                <div className="text-gray-500">{percentage}%</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

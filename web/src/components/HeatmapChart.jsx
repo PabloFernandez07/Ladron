@@ -1,7 +1,4 @@
-// ==========================================
 // web/src/components/HeatmapChart.jsx
-// Mapa de calor de actividad por día y hora
-// ==========================================
 import { useEffect, useState } from 'react';
 
 function HeatmapChart() {
@@ -17,29 +14,36 @@ function HeatmapChart() {
       try {
         setLoading(true);
         const response = await fetch(`${import.meta.env.VITE_API_URL}/robos/heatmap`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
         const result = await response.json();
         
-        // Asegurarse de que result sea un array
-        const dataArray = Array.isArray(result) ? result : [];
+        console.log('Heatmap - Datos recibidos:', result);
         
-        setData(dataArray);
-        setError(null);
+        // Verificar que sea un array
+        if (Array.isArray(result) && result.length > 0) {
+          setData(result);
+          setError(null);
+        } else {
+          setError('No hay datos disponibles');
+          setData(null);
+        }
       } catch (err) {
         console.error('Error cargando heatmap:', err);
-        setError('Error al cargar datos');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-    
-    // Actualizar cada 30 segundos
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Función para obtener el color según la intensidad
   const getColor = (count, max) => {
     if (count === 0) return 'bg-gray-700';
     
@@ -52,7 +56,7 @@ function HeatmapChart() {
     return 'bg-blue-500';
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg shadow-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">🔥 Actividad por Hora</h3>
@@ -75,7 +79,7 @@ function HeatmapChart() {
   }
 
   // Encontrar el máximo valor para normalizar colores
-  const maxCount = Math.max(...data.map(item => item.count));
+  const maxCount = Math.max(...data.map(item => item.total));
 
   // Crear matriz de datos
   const matrix = {};
@@ -83,7 +87,8 @@ function HeatmapChart() {
     if (!matrix[item.hora]) {
       matrix[item.hora] = {};
     }
-    matrix[item.hora][item.dia] = item.count;
+    // Usar diaSemana en lugar de dia
+    matrix[item.hora][item.diaSemana] = item.total;
   });
 
   return (
@@ -150,12 +155,12 @@ function HeatmapChart() {
               {(() => {
                 const hourCounts = {};
                 data.forEach(item => {
-                  hourCounts[item.hora] = (hourCounts[item.hora] || 0) + item.count;
+                  hourCounts[item.hora] = (hourCounts[item.hora] || 0) + item.total;
                 });
                 const maxHour = Object.keys(hourCounts).reduce((a, b) => 
                   hourCounts[a] > hourCounts[b] ? a : b
                 );
-                return `${maxHour}:00 - ${maxHour < 12 ? maxHour + 12 : maxHour}:00`;
+                return `${maxHour}:00`;
               })()}
             </div>
           </div>
@@ -165,7 +170,7 @@ function HeatmapChart() {
               {(() => {
                 const dayCounts = {};
                 data.forEach(item => {
-                  dayCounts[item.dia] = (dayCounts[item.dia] || 0) + item.count;
+                  dayCounts[item.diaSemana] = (dayCounts[item.diaSemana] || 0) + item.total;
                 });
                 const maxDay = Object.keys(dayCounts).reduce((a, b) => 
                   dayCounts[a] > dayCounts[b] ? a : b

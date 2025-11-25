@@ -1,7 +1,4 @@
-// ==========================================
 // web/src/components/VentasBandasChart.jsx
-// Gráfica de barras de ventas por banda
-// ==========================================
 import { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -14,14 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 function VentasBandasChart() {
   const [data, setData] = useState(null);
@@ -33,29 +23,38 @@ function VentasBandasChart() {
       try {
         setLoading(true);
         const response = await fetch(`${import.meta.env.VITE_API_URL}/ventas/por-banda`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
         const result = await response.json();
         
-        // Asegurarse de que result sea un array
-        const dataArray = Array.isArray(result) ? result : [];
+        console.log('VentasBandas - Datos recibidos:', result);
         
-        setData(dataArray);
-        setError(null);
+        // Verificar el formato que recibimos
+        if (result && result.labels && result.ingresos) {
+          // Formato: {labels: [], ventas: [], ingresos: []}
+          setData(result);
+          setError(null);
+        } else {
+          setError('Formato de datos incorrecto');
+          setData(null);
+        }
       } catch (err) {
         console.error('Error cargando ventas por banda:', err);
-        setError('Error al cargar datos');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-    
-    // Actualizar cada 30 segundos
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg shadow-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">📊 Ventas por Banda</h3>
@@ -66,7 +65,7 @@ function VentasBandasChart() {
     );
   }
 
-  if (error || !data || data.length === 0) {
+  if (error || !data || !data.labels || data.labels.length === 0) {
     return (
       <div className="bg-gray-800 bg-opacity-50 backdrop-blur-lg rounded-lg shadow-lg p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">📊 Ventas por Banda</h3>
@@ -77,15 +76,12 @@ function VentasBandasChart() {
     );
   }
 
-  // Ordenar por ingresos de mayor a menor
-  const sortedData = [...data].sort((a, b) => b.ingresos - a.ingresos);
-
   const chartData = {
-    labels: sortedData.map(item => item.banda),
+    labels: data.labels,
     datasets: [
       {
         label: 'Ingresos ($)',
-        data: sortedData.map(item => item.ingresos),
+        data: data.ingresos,
         backgroundColor: 'rgba(34, 197, 94, 0.8)',
         borderColor: 'rgba(34, 197, 94, 1)',
         borderWidth: 2,
@@ -94,7 +90,7 @@ function VentasBandasChart() {
       },
       {
         label: 'Ventas',
-        data: sortedData.map(item => item.total),
+        data: data.ventas,
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
         borderColor: 'rgba(59, 130, 246, 1)',
         borderWidth: 2,
@@ -112,9 +108,7 @@ function VentasBandasChart() {
         position: 'top',
         labels: {
           color: '#e5e7eb',
-          font: {
-            size: 12,
-          },
+          font: { size: 12 },
           padding: 15,
           usePointStyle: true,
         },
@@ -148,10 +142,7 @@ function VentasBandasChart() {
         ticks: {
           color: '#9ca3af',
           callback: function(value) {
-            if (this.chart.data.datasets[0].label.includes('Ingresos')) {
-              return '$' + value.toLocaleString('es-ES');
-            }
-            return value;
+            return '$' + value.toLocaleString('es-ES');
           }
         },
       },
@@ -178,18 +169,18 @@ function VentasBandasChart() {
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div className="text-center">
             <div className="text-gray-400 mb-1">Top Banda</div>
-            <div className="text-white font-semibold text-sm">{sortedData[0]?.banda}</div>
+            <div className="text-white font-semibold text-sm">{data.labels[0]}</div>
             <div className="text-green-400 font-bold">
-              ${sortedData[0]?.ingresos.toLocaleString('es-ES')}
+              ${data.ingresos[0]?.toLocaleString('es-ES')}
             </div>
           </div>
           <div className="text-center">
             <div className="text-gray-400 mb-1">Total Ventas</div>
             <div className="text-white font-semibold text-sm">
-              {sortedData.reduce((sum, item) => sum + item.total, 0)}
+              {data.ventas.reduce((sum, val) => sum + val, 0)} ventas
             </div>
             <div className="text-blue-400 font-bold">
-              ${sortedData.reduce((sum, item) => sum + item.ingresos, 0).toLocaleString('es-ES')}
+              ${data.ingresos.reduce((sum, val) => sum + val, 0).toLocaleString('es-ES')}
             </div>
           </div>
         </div>

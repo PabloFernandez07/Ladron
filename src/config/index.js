@@ -11,7 +11,8 @@ const config = {
   },
   
   canales: {
-    robos: process.env.CANAL_MENSAJE_ROBOS,
+    robos: process.env.CANAL_MENSAJE_ROBOS, // Resumen semanal
+    robosIndividuales: process.env.CANAL_ROBOS_INDIVIDUALES, // Mensajes individuales
     ventas: process.env.CANAL_VENTAS,
     limites: process.env.CANAL_LIMITES_ID,
     avisos: process.env.CANAL_AVISOS_ID

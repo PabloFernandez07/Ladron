@@ -40,7 +40,6 @@ router.get('/robos', async (req, res) => {
     
     const params = [];
     
-    // Filtros opcionales
     if (tipo) {
       sql += ' AND tipo = ?';
       params.push(tipo);
@@ -71,7 +70,6 @@ router.get('/robos', async (req, res) => {
     
     const robos = await query(sql, params);
     
-    // Parsear participantes de JSON
     const robosParsed = robos.map(r => ({
       ...r,
       exito: Boolean(r.exito),
@@ -129,6 +127,7 @@ router.get('/robos/por-dia', async (req, res) => {
 /**
  * GET /api/robos/por-tipo
  * Robos agrupados por tipo (para gráfica circular)
+ * FORMATO CORRECTO: Array de objetos
  */
 router.get('/robos/por-tipo', async (req, res) => {
   try {
@@ -142,13 +141,20 @@ router.get('/robos/por-tipo', async (req, res) => {
       FROM robos
       WHERE fecha >= DATE_SUB(NOW(), INTERVAL ? DAY)
       GROUP BY tipo
+      ORDER BY 
+        CASE tipo
+          WHEN 'bajo' THEN 1
+          WHEN 'medio' THEN 2
+          WHEN 'grande' THEN 3
+        END
     `, [parseInt(dias)]);
     
-    res.json({
-      labels: rows.map(r => r.tipo),
-      totales: rows.map(r => parseInt(r.total)),
-      exitosos: rows.map(r => parseInt(r.exitosos))
-    });
+    // FORMATO CORRECTO: Array de objetos
+    res.json(rows.map(r => ({
+      tipo: r.tipo,
+      total: parseInt(r.total),
+      exitosos: parseInt(r.exitosos)
+    })));
     
   } catch (error) {
     logger.error('Error en GET /api/robos/por-tipo:', error);
@@ -234,6 +240,7 @@ router.get('/robos/top-usuarios', async (req, res) => {
 /**
  * GET /api/robos/heatmap
  * Mapa de calor por día de la semana y hora
+ * FORMATO CORRECTO: dia, hora, count
  */
 router.get('/robos/heatmap', async (req, res) => {
   try {
@@ -250,10 +257,11 @@ router.get('/robos/heatmap', async (req, res) => {
       ORDER BY dia_semana, hora
     `, [parseInt(dias)]);
     
+    // FORMATO CORRECTO: dia, hora, count
     res.json(rows.map(r => ({
-      diaSemana: parseInt(r.dia_semana),
+      dia: parseInt(r.dia_semana),
       hora: parseInt(r.hora),
-      total: parseInt(r.total)
+      count: parseInt(r.total)
     })));
     
   } catch (error) {

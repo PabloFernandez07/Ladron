@@ -59,7 +59,6 @@ router.get('/ventas', async (req, res) => {
     
     const ventas = await query(sql, params);
     
-    // Parsear productos
     const ventasParsed = ventas.map(v => ({
       ...v,
       precio_total: parseFloat(v.precio_total),
@@ -89,6 +88,7 @@ router.get('/ventas', async (req, res) => {
 /**
  * GET /api/ventas/por-banda
  * Ventas agrupadas por banda (para gráfica de barras)
+ * FORMATO CORRECTO: Array de objetos
  */
 router.get('/ventas/por-banda', async (req, res) => {
   try {
@@ -105,11 +105,12 @@ router.get('/ventas/por-banda', async (req, res) => {
       ORDER BY ingresos_totales DESC
     `, [parseInt(dias)]);
     
-    res.json({
-      labels: rows.map(r => r.banda_id),
-      ventas: rows.map(r => parseInt(r.total_ventas)),
-      ingresos: rows.map(r => parseFloat(r.ingresos_totales))
-    });
+    // FORMATO CORRECTO: Array de objetos
+    res.json(rows.map(r => ({
+      banda: r.banda_id,
+      total: parseInt(r.total_ventas),
+      ingresos: parseFloat(r.ingresos_totales)
+    })));
     
   } catch (error) {
     logger.error('Error en GET /api/ventas/por-banda:', error);
@@ -189,7 +190,6 @@ router.get('/ventas/limites', async (req, res) => {
   try {
     const { caches } = require('../services/cacheService');
     
-    // Obtener productos y sus límites
     const productos = caches.productos.get() || {};
     const registro = caches.registroSemanal.get() || {};
     
@@ -205,7 +205,7 @@ router.get('/ventas/limites', async (req, res) => {
         const limite = producto.limite_semanal;
         const porcentaje = (cantidad / limite) * 100;
         
-        if (porcentaje >= 70) { // Alertar cuando esté al 70% o más
+        if (porcentaje >= 70) {
           alertas.push({
             bandaId,
             productoId,
@@ -219,7 +219,6 @@ router.get('/ventas/limites', async (req, res) => {
       }
     }
     
-    // Ordenar por porcentaje descendente
     alertas.sort((a, b) => b.porcentaje - a.porcentaje);
     
     res.json(alertas);
