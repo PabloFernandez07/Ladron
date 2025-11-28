@@ -53,7 +53,7 @@ module.exports = {
 
       // ✅ Enviar mensaje individual al canal de robos individuales
       // Usa config.canales.robosIndividuales o fallback a config.canales.robos
-      const canalIndividualId = config.canales.robosIndividuales || config.canales.robos;
+      const canalIndividualId = config.canales.robosIndividuales;
       
       if (canalIndividualId) {
         const canalIndividual = interaction.guild.channels.cache.get(canalIndividualId);
