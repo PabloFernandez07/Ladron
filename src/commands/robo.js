@@ -1,13 +1,10 @@
 // ==========================================
-// src/commands/robo.js - CON LOGS DE DEBUG
+// src/commands/robo.js - CORREGIDO
 // ==========================================
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const roboService = require('../services/roboService');
 const config = require('../config');
 const logger = require('../utils/logger');
-
-// ✅ NUEVO: Canal específico para mensajes individuales de robos
-const CANAL_ROBOS_INDIVIDUALES = '1412269349275697215';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -39,11 +36,9 @@ module.exports = {
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      logger.info('🔵 [ROBO] Iniciando registro de robo', {
+      logger.info('Iniciando registro de robo', {
         usuario: interaction.user.tag,
-        userId: interaction.user.id,
-        guild: interaction.guild.name,
-        guildId: interaction.guild.id
+        guild: interaction.guild.name
       });
 
       const data = {
@@ -53,61 +48,36 @@ module.exports = {
         imagenUrl: interaction.options.getString('imagen')
       };
 
-      logger.info('🔵 [ROBO] Datos del robo:', data);
-
       // Registrar el robo
       const { embed, establecimiento } = await roboService.registrarRobo(interaction, data);
 
-      logger.info('✅ [ROBO] Robo registrado en servicio');
-
-      // ✅ CAMBIO 1: Enviar mensaje individual al nuevo canal
-      logger.info(`🔍 [ROBO INDIVIDUAL] Buscando canal: ${CANAL_ROBOS_INDIVIDUALES}`);
-      logger.info(`🔍 [ROBO INDIVIDUAL] Canales disponibles en el servidor:`, {
-        total: interaction.guild.channels.cache.size,
-        canales: interaction.guild.channels.cache.map(c => ({
-          id: c.id,
-          nombre: c.name,
-          tipo: c.type
-        }))
-      });
-
-      const canalIndividual = interaction.guild.channels.cache.get(CANAL_ROBOS_INDIVIDUALES);
+      // ✅ Enviar mensaje individual al canal de robos individuales
+      // Usa config.canales.robosIndividuales o fallback a config.canales.robos
+      const canalIndividualId = config.canales.robosIndividuales || config.canales.robos;
       
-      if (canalIndividual) {
-        logger.info(`✅ [ROBO INDIVIDUAL] Canal encontrado: ${canalIndividual.name} (${canalIndividual.id})`);
+      if (canalIndividualId) {
+        const canalIndividual = interaction.guild.channels.cache.get(canalIndividualId);
         
-        try {
-          await canalIndividual.send({ embeds: [embed] });
-          logger.info(`✅ [ROBO INDIVIDUAL] Mensaje enviado exitosamente al canal ${canalIndividual.name}`);
-        } catch (sendError) {
-          logger.error(`❌ [ROBO INDIVIDUAL] Error enviando mensaje:`, sendError);
-        }
-      } else {
-        logger.warn(`⚠️ [ROBO INDIVIDUAL] Canal ${CANAL_ROBOS_INDIVIDUALES} NO encontrado`);
-        logger.warn(`⚠️ [ROBO INDIVIDUAL] Verifica que el bot tenga acceso al canal y que el ID sea correcto`);
-      }
-
-      // ✅ CAMBIO 2: Resumen semanal se envía al canal original (CANAL_MENSAJE_ROBOS)
-      logger.info(`🔍 [RESUMEN SEMANAL] Buscando canal de resumen: ${config.canales.robos}`);
-      
-      const canalResumen = interaction.guild.channels.cache.get(config.canales.robos);
-      
-      if (canalResumen) {
-        logger.info(`✅ [RESUMEN SEMANAL] Canal encontrado: ${canalResumen.name} (${canalResumen.id})`);
-        
-        const resumenEmbed = this.crearResumenSemanal();
-        if (resumenEmbed) {
+        if (canalIndividual) {
           try {
-            await canalResumen.send({ embeds: [resumenEmbed] });
-            logger.info(`✅ [RESUMEN SEMANAL] Resumen enviado exitosamente al canal ${canalResumen.name}`);
+            await canalIndividual.send({ embeds: [embed] });
+            logger.info(`Mensaje de robo enviado a canal ${canalIndividual.name}`);
           } catch (sendError) {
-            logger.error(`❌ [RESUMEN SEMANAL] Error enviando resumen:`, sendError);
+            logger.error('Error enviando mensaje de robo:', sendError.message);
           }
         } else {
-          logger.info(`ℹ️ [RESUMEN SEMANAL] No hay datos para crear resumen`);
+          logger.warn(`Canal de robos individuales no encontrado: ${canalIndividualId}`);
+          
+          // Listar canales disponibles para debug
+          logger.debug('Canales disponibles:', 
+            interaction.guild.channels.cache
+              .filter(c => c.type === 0) // Solo canales de texto
+              .map(c => `${c.name} (${c.id})`)
+              .join(', ')
+          );
         }
       } else {
-        logger.warn(`⚠️ [RESUMEN SEMANAL] Canal ${config.canales.robos} NO encontrado`);
+        logger.warn('No hay canal configurado para robos individuales');
       }
 
       // Respuesta efímera al usuario
@@ -116,10 +86,10 @@ module.exports = {
         ephemeral: true
       });
 
-      logger.info('✅ [ROBO] Proceso completado exitosamente');
+      logger.info('Robo registrado exitosamente');
 
     } catch (error) {
-      logger.error('❌ [ROBO] Error ejecutando comando /robo:', error);
+      logger.error('Error ejecutando comando /robo:', error);
       
       const errorMsg = error.message || 'Error desconocido';
       
@@ -161,39 +131,5 @@ module.exports = {
       logger.error('Error en autocomplete:', error);
       await interaction.respond([]).catch(() => {});
     }
-  },
-
-  crearResumenSemanal() {
-    const { caches } = require('../services/cacheService');
-    const resumen = caches.robosSemana.get();
-
-    if (!resumen || Object.keys(resumen).length === 0) {
-      return null;
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle('📊 Resumen Semanal de Robos')
-      .setColor('#00ff00')
-      .setTimestamp();
-
-    for (const tipo in resumen) {
-      const tipoInfo = config.tipos[tipo];
-      let texto = '';
-
-      for (const establecimiento in resumen[tipo]) {
-        const stats = resumen[tipo][establecimiento];
-        texto += `**${establecimiento}**: ${stats.exitosos} ✅ / ${stats.fallidos} ❌\n`;
-      }
-
-      if (texto) {
-        embed.addFields({
-          name: `${tipoInfo.emoji} ${tipoInfo.label}`,
-          value: texto,
-          inline: false
-        });
-      }
-    }
-
-    return embed;
   }
 };

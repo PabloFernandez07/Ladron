@@ -27,24 +27,75 @@ router.get('/stats', async (req, res) => {
     const ventas = await query(`
       SELECT 
         COUNT(*) as total,
-        SUM(precio_total) as ingresos
+        COALESCE(SUM(precio_total), 0) as ingresos
       FROM ventas
       WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
     
     // ✅ CORREGIDO: Top 5 ladrones usando participantes_robos
-    const topLadrones = await query(`
-      SELECT 
-        pr.usuario_id,
-        COUNT(*) as total_robos,
-        SUM(CASE WHEN r.exito = 1 THEN 1 ELSE 0 END) as exitosos
-      FROM participantes_robos pr
-      INNER JOIN robos r ON pr.robo_id = r.id
-      WHERE r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      GROUP BY pr.usuario_id
-      ORDER BY total_robos DESC
-      LIMIT 5
-    `);
+    // Primero verificamos si existe la tabla participantes_robos
+    let topLadrones = [];
+    
+    try {
+      // Intentar con la tabla participantes_robos (nueva estructura)
+      topLadrones = await query(`
+        SELECT 
+          pr.usuario_id,
+          COUNT(*) as total_robos,
+          SUM(CASE WHEN r.exito = 1 THEN 1 ELSE 0 END) as exitosos
+        FROM participantes_robos pr
+        INNER JOIN robos r ON pr.robo_id = r.id
+        WHERE r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY pr.usuario_id
+        ORDER BY total_robos DESC
+        LIMIT 5
+      `);
+    } catch (tableError) {
+      // Si falla, puede que la tabla no exista aún
+      // Intentar extraer de JSON en la tabla robos
+      logger.warn('Tabla participantes_robos no encontrada, usando fallback');
+      
+      try {
+        const robosConParticipantes = await query(`
+          SELECT participantes, exito
+          FROM robos 
+          WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND participantes IS NOT NULL
+        `);
+        
+        // Contar participaciones manualmente
+        const conteo = {};
+        
+        for (const robo of robosConParticipantes) {
+          try {
+            const participantes = JSON.parse(robo.participantes || '[]');
+            for (const oderId of participantes) {
+              if (!conteo[oderId]) {
+                conteo[oderId] = { total: 0, exitosos: 0 };
+              }
+              conteo[oderId].total++;
+              if (robo.exito) conteo[oderId].exitosos++;
+            }
+          } catch (parseError) {
+            // Ignorar errores de parse
+          }
+        }
+        
+        // Convertir a array y ordenar
+        topLadrones = Object.entries(conteo)
+          .map(([oderId, stats]) => ({
+            usuario_id: oderId,
+            total_robos: stats.total,
+            exitosos: stats.exitosos
+          }))
+          .sort((a, b) => b.total_robos - a.total_robos)
+          .slice(0, 5);
+          
+      } catch (fallbackError) {
+        logger.error('Error en fallback de topLadrones:', fallbackError);
+        topLadrones = [];
+      }
+    }
     
     const roboData = robos[0] || { total: 0, exitosos: 0, fallidos: 0 };
     const ventaData = ventas[0] || { total: 0, ingresos: 0 };
@@ -95,15 +146,15 @@ router.get('/stats', async (req, res) => {
     
     res.json({
       robos: {
-        total: parseInt(roboData.total),
-        exitosos: parseInt(roboData.exitosos),
-        fallidos: parseInt(roboData.fallidos),
+        total: parseInt(roboData.total) || 0,
+        exitosos: parseInt(roboData.exitosos) || 0,
+        fallidos: parseInt(roboData.fallidos) || 0,
         tasaExito: roboData.total > 0 
           ? ((roboData.exitosos / roboData.total) * 100).toFixed(1) 
           : '0.0'
       },
       ventas: {
-        total: parseInt(ventaData.total),
+        total: parseInt(ventaData.total) || 0,
         ingresos: parseFloat(ventaData.ingresos) || 0
       },
       topLadrones: topLadronesConNombres
@@ -134,11 +185,15 @@ router.get('/stats/resumen', async (req, res) => {
     
     const semana = await query(`
       SELECT 
-        COUNT(DISTINCT r.id) as robos_semana,
-        COALESCE(SUM(v.precio_total), 0) as ingresos_semana
-      FROM robos r
-      LEFT JOIN ventas v ON DATE(v.fecha) >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      WHERE r.fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        COUNT(*) as robos_semana
+      FROM robos
+      WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    `);
+    
+    const ingresosSemana = await query(`
+      SELECT COALESCE(SUM(precio_total), 0) as ingresos_semana
+      FROM ventas
+      WHERE fecha >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
     
     const mes = await query(`
@@ -151,7 +206,7 @@ router.get('/stats/resumen', async (req, res) => {
       robosHoy: parseInt(hoy[0]?.robos_hoy) || 0,
       robosSemana: parseInt(semana[0]?.robos_semana) || 0,
       robosMes: parseInt(mes[0]?.robos_mes) || 0,
-      ingresosSemana: parseFloat(semana[0]?.ingresos_semana) || 0
+      ingresosSemana: parseFloat(ingresosSemana[0]?.ingresos_semana) || 0
     });
     
   } catch (error) {
