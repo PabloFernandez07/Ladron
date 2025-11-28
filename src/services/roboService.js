@@ -57,7 +57,7 @@ class RoboService {
           `Robo ${result.roboId} registrado con ${result.participantesCount} participantes`
         );
       } catch (dbError) {
-        logger.warn("No se pudo registrar en BD:", dbError.message);
+        logger.warn("No se pudo registrar en BD:", dbError);
       }
 
       // Actualizar contadores y crear embed

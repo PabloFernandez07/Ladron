@@ -1,8 +1,9 @@
 // ==========================================
-// src/commands/robo.js - CORREGIDO
+// src/commands/robo.js - CORREGIDO v2
 // ==========================================
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const roboService = require('../services/roboService');
+const registroService = require('../services/registroService');
 const config = require('../config');
 const logger = require('../utils/logger');
 
@@ -51,9 +52,8 @@ module.exports = {
       // Registrar el robo
       const { embed, establecimiento } = await roboService.registrarRobo(interaction, data);
 
-      // ✅ Enviar mensaje individual al canal de robos individuales
-      // Usa config.canales.robosIndividuales o fallback a config.canales.robos
-      const canalIndividualId = config.canales.robosIndividuales;
+      // ✅ 1. Enviar mensaje individual al canal de robos individuales
+      const canalIndividualId = config.canales.robosIndividuales || config.canales.robos;
       
       if (canalIndividualId) {
         const canalIndividual = interaction.guild.channels.cache.get(canalIndividualId);
@@ -67,17 +67,15 @@ module.exports = {
           }
         } else {
           logger.warn(`Canal de robos individuales no encontrado: ${canalIndividualId}`);
-          
-          // Listar canales disponibles para debug
-          logger.debug('Canales disponibles:', 
-            interaction.guild.channels.cache
-              .filter(c => c.type === 0) // Solo canales de texto
-              .map(c => `${c.name} (${c.id})`)
-              .join(', ')
-          );
         }
-      } else {
-        logger.warn('No hay canal configurado para robos individuales');
+      }
+
+      // ✅ 2. Actualizar el resumen semanal usando registroService (formato bonito)
+      try {
+        await registroService.enviarResumenSemanal(interaction.guild);
+        logger.info('Resumen semanal actualizado');
+      } catch (resumenError) {
+        logger.error('Error actualizando resumen semanal:', resumenError.message);
       }
 
       // Respuesta efímera al usuario
